@@ -1,55 +1,83 @@
 package main
 
+// A simple program demonstrating the paginator component from the Bubbles
+// component library.
+
 import (
 	"fmt"
 	"log"
 
 	"github.com/charmbracelet/huh"
 	"github.com/dominickp/go-hn-cli/client"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-func padRight(str string, length int) string {
-	for {
-		str += " "
-		if len(str) >= length {
-			return str
-		}
-	}
+type Model struct {
+	form         *huh.Form // huh.Form is just a tea.Model
+	items        []client.Item
+	selectedItem int
 }
 
-func main() {
+var selectedItem int
 
-	selectedItem := 0
+func NewModel() Model {
+	//fmt.Println("msg: ", msg)
+	topMenuResponse, _ := client.GetTopMenuResponse(10)
+	items := topMenuResponse.Items
 
-	topMenuResponse, err := client.GetTopMenuResponse(10)
-	for _, item := range topMenuResponse.Items {
-		fmt.Println(item.Id, item.Title)
-	}
-
-	huhOptions := make([]huh.Option[int], len(topMenuResponse.Items))
-	for i, item := range topMenuResponse.Items {
-		scoreKey := padRight(fmt.Sprintf("%d", item.Score), 4)
+	huhOptions := make([]huh.Option[int], len(items))
+	for i, item := range items {
+		scoreKey := fmt.Sprintf("%d", item.Score)
 		optionTitle := fmt.Sprintf("%s %s", scoreKey, item.Title) // Convert item.Score to string using %d.
 		huhOptions[i] = huh.NewOption(optionTitle, item.Id)
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[int]().
-				Title("Top Topics").
-				Options(huhOptions...).
-				Value(&selectedItem),
+	return Model{
+		form: huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[int]().
+					Title("Top Topics").
+					Options(huhOptions...).
+					Key("selectedItem").Value(&selectedItem),
+			),
 		),
-	)
+		items: items,
+	}
+}
 
-	err = form.Run()
-	if err != nil {
-		log.Fatal(err)
+func (m Model) Init() tea.Cmd {
+	return m.form.Init()
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// switch msg := msg.(type) {
+	// case tea.KeyMsg:
+	// default:
+
+	// }
+
+	// ...
+
+	form, cmd := m.form.Update(msg)
+	if f, ok := form.(*huh.Form); ok {
+		m.form = f
 	}
 
-	fmt.Println(selectedItem)
+	return m, cmd
+}
 
-	// Generate new form to show the topic and comments, then have a back option
-	// That renders the first form again in a loop
+func (m Model) View() string {
+	if m.form.State == huh.StateCompleted {
+		// selectedItem := m.form.GetString("selectedItem")
+		return fmt.Sprintf("You selected: %d", selectedItem)
+	}
+	return m.form.View()
+}
 
+func main() {
+	p := tea.NewProgram(NewModel())
+	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
