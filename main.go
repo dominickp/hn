@@ -9,6 +9,8 @@ import (
 	"github.com/dominickp/go-hn-cli/client"
 )
 
+const logfilePath = "logs/bubbletea.log"
+
 type model struct {
 	choices         []string // items on the to-do list
 	topMenuResponse client.TopMenuResponse
@@ -34,7 +36,7 @@ func checkTopMenu() tea.Msg {
 }
 
 func checkTopic(topicID int) tea.Msg {
-	item, err := client.GetItem(topicID)
+	item, err := client.GetItemWithComments(topicID)
 
 	if err != nil {
 		// There was an error making our request. Wrap the error we received
@@ -177,12 +179,6 @@ func (m model) View() string {
 			cursor = ">" // cursor!
 		}
 
-		// // Is this choice selected?
-		// checked := " " // not selected
-		// if _, ok := m.selected[i]; ok {
-		// 	checked = "x" // selected!
-		// }
-
 		// Render the row
 		s += fmt.Sprintf("%s %s\n", cursor, choice)
 	}
@@ -195,9 +191,6 @@ func (m model) View() string {
 }
 
 func main() {
-	// Log to a file. Useful in debugging since you can't really log to stdout.
-	// Not required.
-	logfilePath := "logs/bubbletea.log"
 	if logfilePath != "" {
 		if _, err := tea.LogToFile(logfilePath, "simple"); err != nil {
 			log.Fatal(err)

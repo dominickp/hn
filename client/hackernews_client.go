@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -42,6 +43,8 @@ func handleRequest(method string, endpoint string, headers map[string]string, re
 		SetHeaders(headers).
 		SetResult(result).
 		Get(hackernewsURIPrefix + endpoint)
+
+	log.Printf("Request to %s%s returned %d", hackernewsURIPrefix, endpoint, response.StatusCode())
 	if err != nil {
 		return err
 	}
@@ -52,6 +55,7 @@ func handleRequest(method string, endpoint string, headers map[string]string, re
 }
 
 func GetTopStories() ([]int, error) {
+	log.Println("Getting top stories")
 	var topStories []int
 	err := handleRequest("GET", "topstories.json", nil, &topStories)
 	if err != nil {
@@ -74,6 +78,18 @@ type Item struct {
 }
 
 func GetItem(itemId int) (Item, error) {
+	log.Printf("Getting item %d", itemId)
+	var item Item
+	err := handleRequest("GET", fmt.Sprintf("item/%d.json", itemId), nil, &item)
+	if err != nil {
+		return Item{}, err
+	}
+
+	return item, nil
+}
+
+func GetItemWithComments(itemId int) (Item, error) {
+	log.Printf("Getting item with comments %d", itemId)
 	var item Item
 	err := handleRequest("GET", fmt.Sprintf("item/%d.json", itemId), nil, &item)
 	if err != nil {
@@ -82,6 +98,7 @@ func GetItem(itemId int) (Item, error) {
 
 	// Gather details of the comments
 	for _, commentId := range item.Kids {
+		log.Printf("Getting comment %d", commentId)
 		var comment Item
 		err := handleRequest("GET", fmt.Sprintf("item/%d.json", commentId), nil, &comment)
 		if err != nil {
