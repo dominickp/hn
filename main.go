@@ -2,14 +2,19 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dominickp/go-hn-cli/client"
 	"github.com/dominickp/go-hn-cli/util"
 )
+
+// TODO: implement viewport for scrolling https://github.com/charmbracelet/bubbletea/blob/master/examples/pager/main.go
 
 const logfilePath = "logs/bubbletea.log"
 
@@ -89,17 +94,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The server returned a top menu response message. Save it to our model.
 		m.topMenuResponse = client.TopMenuResponse(msg)
 		choices := make([]string, len(msg.Items))
+		style := lipgloss.NewStyle().
+			Bold(false).
+			Foreground(lipgloss.Color("8"))
 		for i, item := range msg.Items {
-			choices[i] = fmt.Sprintf("%s %s", util.PadRight(strconv.Itoa(item.Score), 5), item.Title)
+			choices[i] = fmt.Sprintf("%s %s", style.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
 		}
 		m.choices = choices
-		return m, nil
+		return m, tea.ClearScreen
 
 	case topicMsg:
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
 		fmt.Println("current topic: ", m.currentTopic.Title)
-		return m, nil
+		// Set comments as choices
+		choices := make([]string, len(m.currentTopic.Comments))
+		for i, comment := range m.currentTopic.Comments {
+			commentText := html.UnescapeString(comment.Text)
+			commentText = strings.ReplaceAll(commentText, "<p>", "\n")
+			commentText = strings.ReplaceAll(commentText, "</p>", "\n")
+			choices[i] = html.UnescapeString(commentText)
+		}
+		m.choices = choices
+		return m, tea.ClearScreen
 	case errMsg:
 		// There was an error. Note it in the model. And tell the runtime
 		// we're done and want to quit.
@@ -136,12 +153,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Find the item that the cursor is pointing at
 			item := m.topMenuResponse.Items[m.cursor]
 			m.currentItem = item.Id
+			m.cursor = 0
 
 			return m, tea.Cmd(m.InitTopic())
 
 		case "backspace":
 			m.currentItem = 0
 			m.currentTopic = client.Item{}
+			m.cursor = 0
 			return m, tea.Cmd(m.Init())
 		}
 	}
@@ -153,44 +172,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 
-	s := ""
+	var s string = ""
 
 	if m.currentTopic.Id != 0 {
 		// Render topic view
-		s = fmt.Sprintf("Title: %s\n\n%s\n", m.currentTopic.Title, m.currentTopic.Text)
-
-		// Set comments as choices
-		choices := make([]string, len(m.currentTopic.Comments))
-		for i, comment := range m.currentTopic.Comments {
-			choices[i] = fmt.Sprintf("%d %s", comment.Time, comment.Text)
+		s += fmt.Sprintf("Title: %s\n", m.currentTopic.Title)
+		if m.currentTopic.Text != "" {
+			s += fmt.Sprintf("Text: %s\n", m.currentTopic.Text)
 		}
-		m.choices = choices
-
+		if m.currentTopic.Url != "" {
+			s += fmt.Sprintf("URL: %s\n", m.currentTopic.Url)
+		}
+		s += "\n"
 	} else {
 		// Render top menu view
-
-		// The header
-		s = "HackerNews Top Topics:\n\n"
-
+		s += "HackerNews Top Topics:\n\n"
 	}
 
 	// Iterate over our choices
 	for i, choice := range m.choices {
 
 		// Is the cursor pointing at this choice?
+		style := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("5"))
 		cursor := " " // no cursor
 		if m.cursor == i {
 			cursor = ">" // cursor!
 		}
 
 		// Render the row
-		s += fmt.Sprintf("%s %s\n", cursor, choice)
+		s += fmt.Sprintf("%s %s\n", style.Render(cursor), choice)
 	}
 
 	// The footer
 	s += "\nPress q to quit, backspace to go back.\n"
 
 	// Send the UI for rendering
+
 	return s
 }
 
