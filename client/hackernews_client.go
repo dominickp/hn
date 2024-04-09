@@ -66,8 +66,10 @@ type Item struct {
 	By    string `json:"by"`
 	Time  int    `json:"time"`
 	Title string `json:"title"`
+	Text  string `json:"text"`
 	Url   string `json:"url"`
 	Score int    `json:"score"`
+	Kids  []int  `json:"kids"`
 }
 
 func GetItem(itemId int) (Item, error) {
