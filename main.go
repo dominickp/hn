@@ -104,10 +104,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Set comments as choices
 		choices := make([]string, len(m.currentTopic.Comments))
 		for i, comment := range m.currentTopic.Comments {
+			// TODO
+			// Handle italics
+			// Handle quotes (line starts with >), color green
+			// Handle links
 			commentText := html.UnescapeString(comment.Text)
 			commentText = strings.ReplaceAll(commentText, "<p>", "\n")
 			commentText = strings.ReplaceAll(commentText, "</p>", "\n")
-			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By), textStyle.Render(html.UnescapeString(commentText)))
+			replies := ""
+			if len(comment.Kids) > 0 {
+				replies = fmt.Sprintf(" (%d replies)", len(comment.Kids))
+			}
+			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By+replies), textStyle.Render(html.UnescapeString(commentText)))
 		}
 		m.choices = choices
 		m.viewport.SetContent(getContent(m))
@@ -181,10 +189,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", " ":
 
 			// Find the item that the cursor is pointing at
-			item := m.topMenuResponse.Items[m.cursor]
+			var item client.Item
+			if m.currentTopic.Id != 0 {
+				item = m.currentTopic.Comments[m.cursor]
+			} else {
+				item = m.topMenuResponse.Items[m.cursor]
+			}
+
 			m.currentItem = item.Id
 			m.cursor = 0
-
+			m.viewport.GotoTop()
 			return m, tea.Cmd(m.InitTopic())
 
 		case "backspace":
