@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -130,16 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			item := m.topMenuResponse.Items[m.cursor]
 			m.currentItem = item.Id
 
-			// fmt.Println("selected item: ", item.Id)
-
 			return m, tea.Cmd(m.InitTopic())
-
-			// 	_, ok := m.selected[m.cursor]
-			// if ok {
-			// 	delete(m.selected, m.cursor)
-			// } else {
-			// 	m.selected[m.cursor] = struct{}{}
-			// }
 
 		case "backspace":
 			m.currentItem = 0
@@ -203,9 +195,19 @@ func (m model) View() string {
 }
 
 func main() {
+	// Log to a file. Useful in debugging since you can't really log to stdout.
+	// Not required.
+	logfilePath := "logs/bubbletea.log"
+	if logfilePath != "" {
+		if _, err := tea.LogToFile(logfilePath, "simple"); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
+		log.Fatal(err)
 		os.Exit(1)
 	}
 }
