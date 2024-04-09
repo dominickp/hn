@@ -94,13 +94,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
 		fmt.Println("current topic: ", m.currentTopic.Title)
+		// Styles
+		authorStyle := lipgloss.NewStyle().
+			Bold(false).
+			Foreground(lipgloss.Color("8"))
+		textStyle := lipgloss.NewStyle().
+			PaddingLeft(4).
+			PaddingBottom(2)
 		// Set comments as choices
 		choices := make([]string, len(m.currentTopic.Comments))
 		for i, comment := range m.currentTopic.Comments {
 			commentText := html.UnescapeString(comment.Text)
 			commentText = strings.ReplaceAll(commentText, "<p>", "\n")
 			commentText = strings.ReplaceAll(commentText, "</p>", "\n")
-			choices[i] = html.UnescapeString(commentText)
+			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By), textStyle.Render(html.UnescapeString(commentText)))
 		}
 		m.choices = choices
 		m.viewport.SetContent(getContent(m))

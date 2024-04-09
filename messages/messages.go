@@ -6,7 +6,7 @@ import (
 )
 
 func CheckTopMenu() tea.Msg {
-	topMenuResponse, err := client.GetTopMenuResponse(10)
+	topMenuResponse, err := client.GetTopMenuResponse(15)
 
 	if err != nil {
 		// There was an error making our request. Wrap the error we received
