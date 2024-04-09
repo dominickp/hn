@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dominickp/go-hn-cli/client"
+	"github.com/dominickp/go-hn-cli/util"
 )
 
 const logfilePath = "logs/bubbletea.log"
@@ -36,7 +38,7 @@ func checkTopMenu() tea.Msg {
 }
 
 func checkTopic(topicID int) tea.Msg {
-	item, err := client.GetItemWithComments(topicID)
+	item, err := client.GetItemWithComments(topicID, 10)
 
 	if err != nil {
 		// There was an error making our request. Wrap the error we received
@@ -88,7 +90,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.topMenuResponse = client.TopMenuResponse(msg)
 		choices := make([]string, len(msg.Items))
 		for i, item := range msg.Items {
-			choices[i] = fmt.Sprintf("%d %s", item.Score, item.Title)
+			choices[i] = fmt.Sprintf("%s %s", util.PadRight(strconv.Itoa(item.Score), 5), item.Title)
 		}
 		m.choices = choices
 		return m, nil
@@ -121,6 +123,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// The "down" and "j" keys move the cursor down
 		case "down", "j":
+			// FIXME: only allow scrolling on top menu
+			//			Until I figure out what I'm doing for the topic view
 			if m.cursor < len(m.choices)-1 {
 				m.cursor++
 			}
@@ -156,7 +160,7 @@ func (m model) View() string {
 		s = fmt.Sprintf("Title: %s\n\n%s\n", m.currentTopic.Title, m.currentTopic.Text)
 
 		// Set comments as choices
-		choices := make([]string, len(m.currentTopic.Kids))
+		choices := make([]string, len(m.currentTopic.Comments))
 		for i, comment := range m.currentTopic.Comments {
 			choices[i] = fmt.Sprintf("%d %s", comment.Time, comment.Text)
 		}

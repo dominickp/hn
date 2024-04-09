@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -88,7 +89,7 @@ func GetItem(itemId int) (Item, error) {
 	return item, nil
 }
 
-func GetItemWithComments(itemId int) (Item, error) {
+func GetItemWithComments(itemId, maxComments int) (Item, error) {
 	log.Printf("Getting item with comments %d", itemId)
 	var item Item
 	err := handleRequest("GET", fmt.Sprintf("item/%d.json", itemId), nil, &item)
@@ -98,12 +99,21 @@ func GetItemWithComments(itemId int) (Item, error) {
 
 	// Gather details of the comments
 	for _, commentId := range item.Kids {
+		if len(item.Comments) >= maxComments {
+			break
+		}
 		log.Printf("Getting comment %d", commentId)
 		var comment Item
 		err := handleRequest("GET", fmt.Sprintf("item/%d.json", commentId), nil, &comment)
 		if err != nil {
 			return Item{}, err
 		}
+
+		if strings.HasPrefix(comment.Text, "[") {
+			// Remove comments that are [dupe] or [dead] or [flagged]
+			continue
+		}
+
 		item.Comments = append(item.Comments, comment)
 	}
 
