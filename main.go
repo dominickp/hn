@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dominickp/go-hn-cli/client"
@@ -16,8 +17,22 @@ import (
 )
 
 // TODO: implement viewport for scrolling https://github.com/charmbracelet/bubbletea/blob/master/examples/pager/main.go
+var (
+	titleStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Right = "├"
+		return lipgloss.NewStyle().BorderStyle(b).Padding(0, 1)
+	}()
+
+	infoStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Left = "┤"
+		return titleStyle.Copy().BorderStyle(b)
+	}()
+)
 
 const logfilePath = "logs/bubbletea.log"
+const useHighPerformanceRenderer = false
 
 type model struct {
 	choices         []string // items on the to-do list
@@ -27,6 +42,9 @@ type model struct {
 	err          error // an error to display, if any
 	currentItem  int   // which item is currently selected
 	currentTopic client.Item
+	ready        bool
+	viewport     viewport.Model
+	content      string
 }
 
 func initialModel() model {
@@ -52,6 +70,10 @@ func (m model) InitTopic() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
 	switch msg := msg.(type) {
 
 	case messages.TopMenuMsg:
@@ -65,6 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			choices[i] = fmt.Sprintf("%s %s", style.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
 		}
 		m.choices = choices
+		m.viewport.SetContent(getContent(m))
 		return m, tea.ClearScreen
 
 	case messages.TopicMsg:
@@ -80,12 +103,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			choices[i] = html.UnescapeString(commentText)
 		}
 		m.choices = choices
+		m.viewport.SetContent(getContent(m))
 		return m, tea.ClearScreen
 	case messages.ErrMsg:
 		// There was an error. Note it in the model. And tell the runtime
 		// we're done and want to quit.
 		m.err = msg
 		return m, tea.Quit
+
+	case tea.WindowSizeMsg:
+		headerHeight := lipgloss.Height(m.headerView())
+		footerHeight := lipgloss.Height(m.footerView())
+		verticalMarginHeight := headerHeight + footerHeight
+
+		if !m.ready {
+			// Since this program is using the full size of the viewport we
+			// need to wait until we've received the window dimensions before
+			// we can initialize the viewport. The initial dimensions come in
+			// quickly, though asynchronously, which is why we wait for them
+			// here.
+			m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
+			m.viewport.YPosition = headerHeight
+			m.viewport.HighPerformanceRendering = useHighPerformanceRenderer
+			m.viewport.SetContent(getContent(m))
+			m.ready = true
+
+			// This is only necessary for high performance rendering, which in
+			// most cases you won't need.
+			//
+			// Render the viewport one line below the header.
+			m.viewport.YPosition = headerHeight + 1
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = msg.Height - verticalMarginHeight
+		}
+
+		// if useHighPerformanceRenderer {
+		// 	// Render (or re-render) the whole viewport. Necessary both to
+		// 	// initialize the viewport and when the window is resized.
+		// 	//
+		// 	// This is needed for high-performance rendering only.
+		// 	cmds = append(cmds, viewport.Sync(m.viewport))
+		// }
 
 	case tea.KeyMsg:
 
@@ -125,16 +184,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentItem = 0
 			m.currentTopic = client.Item{}
 			m.cursor = 0
+			m.viewport.GotoTop()
 			return m, tea.Cmd(m.Init())
 		}
+		m.viewport.SetContent(getContent(m))
 	}
 
-	// Return the updated model to the Bubble Tea runtime for processing.
-	// Note that we're not returning a command.
-	return m, nil
+	// Handle keyboard and mouse events in the viewport
+	m.viewport, cmd = m.viewport.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
+func getContent(m model) string {
 
 	var s string = ""
 
@@ -171,10 +234,71 @@ func (m model) View() string {
 
 	// The footer
 	s += "\nPress q to quit, backspace to go back.\n"
+	return s
+}
+
+func (m model) View() string {
+
+	// var s string = ""
+
+	// if m.currentTopic.Id != 0 {
+	// 	// Render topic view
+	// 	s += fmt.Sprintf("Title: %s\n", m.currentTopic.Title)
+	// 	if m.currentTopic.Text != "" {
+	// 		s += fmt.Sprintf("Text: %s\n", m.currentTopic.Text)
+	// 	}
+	// 	if m.currentTopic.Url != "" {
+	// 		s += fmt.Sprintf("URL: %s\n", m.currentTopic.Url)
+	// 	}
+	// 	s += "\n"
+	// } else {
+	// 	// Render top menu view
+	// 	s += "HackerNews Top Topics:\n\n"
+	// }
+
+	// // Iterate over our choices
+	// for i, choice := range m.choices {
+
+	// 	// Is the cursor pointing at this choice?
+	// 	style := lipgloss.NewStyle().
+	// 		Bold(true).
+	// 		Foreground(lipgloss.Color("5"))
+	// 	cursor := " " // no cursor
+	// 	if m.cursor == i {
+	// 		cursor = ">" // cursor!
+	// 	}
+
+	// 	// Render the row
+	// 	s += fmt.Sprintf("%s %s\n", style.Render(cursor), choice)
+	// }
+
+	// // The footer
+	// s += "\nPress q to quit, backspace to go back.\n"
 
 	// Send the UI for rendering
+	if !m.ready {
+		return "\n  Initializing..."
+	}
+	return fmt.Sprintf("%s\n%s\n%s", m.headerView(), m.viewport.View(), m.footerView())
+}
 
-	return s
+func (m model) headerView() string {
+	title := titleStyle.Render("Mr. Pager")
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
+}
+
+func (m model) footerView() string {
+	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func main() {
@@ -184,7 +308,11 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(
+		initialModel(),
+		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
+		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
+	)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		log.Fatal(err)
