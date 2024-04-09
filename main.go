@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dominickp/go-hn-cli/client"
+	"github.com/dominickp/go-hn-cli/messages"
 	"github.com/dominickp/go-hn-cli/util"
 )
 
@@ -28,43 +29,6 @@ type model struct {
 	currentTopic client.Item
 }
 
-func checkTopMenu() tea.Msg {
-	topMenuResponse, err := client.GetTopMenuResponse(10)
-
-	if err != nil {
-		// There was an error making our request. Wrap the error we received
-		// in a message and return it.
-		return errMsg{err}
-	}
-
-	// We received a response from the server. Return the HTTP status code
-	// as a message.
-	return topMenuMsg(topMenuResponse)
-}
-
-func checkTopic(topicID int) tea.Msg {
-	item, err := client.GetItemWithComments(topicID, 10)
-
-	if err != nil {
-		// There was an error making our request. Wrap the error we received
-		// in a message and return it.
-		return errMsg{err}
-	}
-
-	// We received a response from the server. Return the HTTP status code
-	// as a message.
-	return topicMsg(item)
-}
-
-type topMenuMsg client.TopMenuResponse
-type topicMsg client.Item
-type errMsg struct{ err error }
-
-// Error implements error.
-func (e errMsg) Error() string {
-	panic("unimplemented")
-}
-
 func initialModel() model {
 	return model{
 		// Our to-do list is a grocery list
@@ -78,19 +42,19 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return checkTopMenu
+	return messages.CheckTopMenu
 }
 
 func (m model) InitTopic() tea.Cmd {
 	return func() tea.Msg {
-		return checkTopic(m.currentItem)
+		return messages.CheckTopic(m.currentItem)
 	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
-	case topMenuMsg:
+	case messages.TopMenuMsg:
 		// The server returned a top menu response message. Save it to our model.
 		m.topMenuResponse = client.TopMenuResponse(msg)
 		choices := make([]string, len(msg.Items))
@@ -103,7 +67,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.choices = choices
 		return m, tea.ClearScreen
 
-	case topicMsg:
+	case messages.TopicMsg:
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
 		fmt.Println("current topic: ", m.currentTopic.Title)
@@ -117,7 +81,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.choices = choices
 		return m, tea.ClearScreen
-	case errMsg:
+	case messages.ErrMsg:
 		// There was an error. Note it in the model. And tell the runtime
 		// we're done and want to quit.
 		m.err = msg
