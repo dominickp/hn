@@ -61,15 +61,16 @@ func GetTopStories() ([]int, error) {
 }
 
 type Item struct {
-	Id    int    `json:"id"`
-	Type  string `json:"type"`
-	By    string `json:"by"`
-	Time  int    `json:"time"`
-	Title string `json:"title"`
-	Text  string `json:"text"`
-	Url   string `json:"url"`
-	Score int    `json:"score"`
-	Kids  []int  `json:"kids"`
+	Id       int    `json:"id"`
+	Type     string `json:"type"`
+	By       string `json:"by"`
+	Time     int    `json:"time"`
+	Title    string `json:"title"`
+	Text     string `json:"text"`
+	Url      string `json:"url"`
+	Score    int    `json:"score"`
+	Kids     []int  `json:"kids"`
+	Comments []Item `json:"comments"`
 }
 
 func GetItem(itemId int) (Item, error) {
@@ -78,6 +79,17 @@ func GetItem(itemId int) (Item, error) {
 	if err != nil {
 		return Item{}, err
 	}
+
+	// Gather details of the comments
+	for _, commentId := range item.Kids {
+		var comment Item
+		err := handleRequest("GET", fmt.Sprintf("item/%d.json", commentId), nil, &comment)
+		if err != nil {
+			return Item{}, err
+		}
+		item.Comments = append(item.Comments, comment)
+	}
+
 	return item, nil
 }
 

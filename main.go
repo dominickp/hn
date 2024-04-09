@@ -140,6 +140,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// } else {
 			// 	m.selected[m.cursor] = struct{}{}
 			// }
+
+		case "backspace":
+			m.currentItem = 0
+			m.currentTopic = client.Item{}
+			return m, tea.Cmd(m.Init())
 		}
 	}
 
@@ -158,8 +163,8 @@ func (m model) View() string {
 
 		// Set comments as choices
 		choices := make([]string, len(m.currentTopic.Kids))
-		for i, kid := range m.currentTopic.Kids {
-			choices[i] = fmt.Sprintf("%d", kid)
+		for i, comment := range m.currentTopic.Comments {
+			choices[i] = fmt.Sprintf("%d %s", comment.Time, comment.Text)
 		}
 		m.choices = choices
 
@@ -191,7 +196,7 @@ func (m model) View() string {
 	}
 
 	// The footer
-	s += "\nPress q to quit.\n"
+	s += "\nPress q to quit, backspace to go back.\n"
 
 	// Send the UI for rendering
 	return s
