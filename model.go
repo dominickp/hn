@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"html"
 	"strconv"
 	"strings"
+
+	h "golang.org/x/net/html"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -90,14 +93,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Handle italics
 			// Handle quotes (line starts with >), color green
 			// Handle links
-			commentText := html.UnescapeString(comment.Text)
-			commentText = strings.ReplaceAll(commentText, "<p>", "\n")
-			commentText = strings.ReplaceAll(commentText, "</p>", "\n")
+			commentText := htmlToText(comment.Text)
 			replies := ""
 			if len(comment.Kids) > 0 {
 				replies = fmt.Sprintf(" (%d replies)", len(comment.Kids))
 			}
-			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By+replies), textStyle.Render(html.UnescapeString(commentText)))
+			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By+replies), textStyle.Render(commentText))
 		}
 		m.choices = choices
 		m.viewport.SetContent(getContent(m))
@@ -121,27 +122,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// here.
 			m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 			m.viewport.YPosition = headerHeight
-			m.viewport.HighPerformanceRendering = useHighPerformanceRenderer
+			m.viewport.HighPerformanceRendering = false
 			m.viewport.SetContent(getContent(m))
 			m.ready = true
 
-			// This is only necessary for high performance rendering, which in
-			// most cases you won't need.
-			//
 			// Render the viewport one line below the header.
 			m.viewport.YPosition = headerHeight + 1
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - verticalMarginHeight
 		}
-
-		// if useHighPerformanceRenderer {
-		// 	// Render (or re-render) the whole viewport. Necessary both to
-		// 	// initialize the viewport and when the window is resized.
-		// 	//
-		// 	// This is needed for high-performance rendering only.
-		// 	cmds = append(cmds, viewport.Sync(m.viewport))
-		// }
 
 	case tea.KeyMsg:
 
@@ -202,6 +192,72 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func colorizeQuoteLines(s string) string {
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	var lines []string
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, ">") {
+			line = quoteStyle.Render(line)
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// htmlToText converts a hackernews text message which may contain HTML (like <p> tags) to plain text.
+func htmlToText(s string) string {
+	s = html.UnescapeString(s)
+	// Replace <p> tags with newlines
+	s = strings.ReplaceAll(s, "<p>", "\n")
+	s = strings.ReplaceAll(s, "</p>", "\n")
+	// Get content within <i></i> tags
+
+	doc, _ := h.Parse(strings.NewReader(s))
+	var f func(*h.Node)
+	f = func(n *h.Node) {
+		if n.Type == h.ElementNode && n.Data == "i" {
+			if n.FirstChild != nil {
+				italicText := n.FirstChild.Data
+				styledText := italicStyle.Render(italicText)
+				s = strings.Replace(s, "<i>"+italicText+"</i>", styledText, -1)
+			}
+		} else if n.Data == "a" {
+			var href string
+			var rel string
+
+			for _, a := range n.Attr {
+				if a.Key == "href" {
+					href = a.Val
+				}
+				if a.Key == "rel" {
+					rel = a.Val
+				}
+			}
+			if n.FirstChild != nil {
+				linkText := n.FirstChild.Data
+				styledText := linkStyle.Render(linkText)
+				if rel != "" {
+					s = strings.Replace(s, `<a href="`+href+`" rel="`+rel+`">`+linkText+`</a>`, styledText, -1)
+				} else {
+					s = strings.Replace(s, `<a href="`+href+`">`+linkText+`</a>`, styledText, -1)
+				}
+
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+
+	s = colorizeQuoteLines(s)
+
+	return s
+}
+
 // getContent returns the content to be displayed in the viewport.
 func getContent(m model) string {
 
@@ -209,12 +265,15 @@ func getContent(m model) string {
 
 	if m.currentTopic.Id != 0 {
 		// Render topic view
-		s += fmt.Sprintf("Title: %s\n", m.currentTopic.Title)
+		if m.currentTopic.Title != "" {
+			s += fmt.Sprintf("%s\n", titleStyle.Render(m.currentTopic.Title))
+		}
+
 		if m.currentTopic.Text != "" {
-			s += fmt.Sprintf("Text: %s\n", m.currentTopic.Text)
+			s += fmt.Sprintf("%s\n", textStyle.Render(htmlToText(m.currentTopic.Text)))
 		}
 		if m.currentTopic.Url != "" {
-			s += fmt.Sprintf("URL: %s\n", m.currentTopic.Url)
+			s += fmt.Sprintf("→ %s\n", linkStyle.Render(m.currentTopic.Url))
 		}
 		s += "\n"
 	} else {
@@ -251,7 +310,7 @@ func (m model) View() string {
 
 // headerView returns the header view for the paginated viewport.
 func (m model) headerView() string {
-	title := titleStyle.Render("Hacker News")
+	title := titleBoxStyle.Render("Hacker News")
 	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
@@ -265,7 +324,7 @@ func (m model) footerView() string {
 	}
 	navHelpLine := fmt.Sprintf("─── %s ", navMessage)
 
-	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	info := infoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info+navHelpLine)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
 }
