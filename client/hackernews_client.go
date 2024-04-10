@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -43,14 +42,14 @@ func handleRequest(method string, endpoint string, headers map[string]string, re
 	response, err := restyClient.R().
 		SetHeaders(headers).
 		SetResult(result).
-		Get(hackernewsURIPrefix + endpoint)
+		Execute(method, hackernewsURIPrefix+endpoint)
 
 	log.Logger.Printf("Request to %s%s returned %d", hackernewsURIPrefix, endpoint, response.StatusCode())
 	if err != nil {
 		return err
 	}
 	if response.IsError() {
-		return errors.New(fmt.Sprintf("Error: %s", response.String()))
+		return fmt.Errorf("error: %s", response.String())
 	}
 	return nil
 }
@@ -142,16 +141,6 @@ func GetTopMenuResponse(pageSize, page int) (TopMenuResponse, error) {
 		topMenuResponse.Items = append(topMenuResponse.Items, item)
 	}
 
-	// for _, storyId := range topStories {
-	// 	item, err := GetItem(storyId)
-	// 	if err != nil {
-	// 		return TopMenuResponse{}, err
-	// 	}
-	// 	topMenuResponse.Items = append(topMenuResponse.Items, item)
-	// 	if len(topMenuResponse.Items) >= maxItems {
-	// 		break
-	// 	}
-	// }
 	return topMenuResponse, nil
 
 }

@@ -6,7 +6,6 @@ import (
 )
 
 func CheckTopMenu(pageSize, page int) tea.Msg {
-	// TODO: Make pagesize dynamic depending on viewport?
 	topMenuResponse, err := client.GetTopMenuResponse(pageSize, page)
 
 	if err != nil {

@@ -14,10 +14,8 @@ var (
 		b.Left = "┤"
 		return titleBoxStyle.Copy().BorderStyle(b)
 	}()
-	textStyle = lipgloss.NewStyle().
-			Bold(false).
-			Foreground(lipgloss.Color("8"))
 
+	textStyle   = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
 	linkStyle   = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("1"))
 	italicStyle = lipgloss.NewStyle().Italic(true)
 	quoteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
