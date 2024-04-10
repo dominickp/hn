@@ -1,4 +1,7 @@
-# go-hn-cli
- 
+# hn
+Yet another CLI tool to browse the top posts on Hacker News using [their API](https://github.com/HackerNews/API). This project was just an excuse to brush up on go and get some experience working with TUIs.
 
-https://github.com/HackerNews/API
+### Todo
+- Cache API responses to speed up pagination/browsing
+- Improve navigation, so you can dig down into a comment thread and then navigate backwards in steps
+- Tests
