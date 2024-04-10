@@ -13,7 +13,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dominickp/hn/client"
-	"github.com/dominickp/hn/messages"
 	"github.com/dominickp/hn/util"
 )
 
@@ -42,15 +41,15 @@ func (m model) Init() tea.Cmd {
 	return func() tea.Msg {
 		// Don't draw the top menu until we have the viewport size ready
 		if m.ready {
-			return messages.CheckTopMenu(m.pageSize, m.currentPage)
+			return checkTopMenu(m.pageSize, m.currentPage)
 		}
-		return messages.CheckNothing()
+		return checkNothing()
 	}
 }
 
 func (m model) InitTopic() tea.Cmd {
 	return func() tea.Msg {
-		return messages.CheckTopic(m.currentItem)
+		return checkTopic(m.currentItem)
 	}
 }
 
@@ -63,7 +62,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	switch msg := msg.(type) {
 
-	case messages.TopMenuMsg:
+	case topMenuMsg:
 		// The server returned a top menu response message. Save it to our model.
 		m.topMenuResponse = client.TopMenuResponse(msg)
 		choices := make([]string, len(msg.Items))
@@ -77,7 +76,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(getContent(m))
 		return m, tea.ClearScreen
 
-	case messages.TopicMsg:
+	case topicMsg:
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
 		fmt.Println("current topic: ", m.currentTopic.Title)
@@ -101,7 +100,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.choices = choices
 		m.viewport.SetContent(getContent(m))
 		return m, tea.ClearScreen
-	case messages.ErrMsg:
+
+	case errMsg:
 		// There was an error. Note it in the model. And tell the runtime
 		// we're done and want to quit.
 		m.err = msg
