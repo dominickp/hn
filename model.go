@@ -20,16 +20,14 @@ import (
 type model struct {
 	choices         []string // items on the to-do list
 	topMenuResponse client.TopMenuResponse
-	cursor          int // which to-do list item our cursor is pointing at
-	// selected map[int]struct{} // which to-do items are selected
-	err          error // an error to display, if any
-	currentItem  int   // which item is currently selected
-	currentTopic client.Item
-	ready        bool
-	viewport     viewport.Model
-	content      string
-	pageSize     int
-	currentPage  int
+	cursor          int   // which to-do list item our cursor is pointing at
+	err             error // an error to display, if any
+	currentItem     int   // which item is currently selected
+	currentTopic    client.Item
+	ready           bool
+	viewport        viewport.Model
+	pageSize        int
+	currentPage     int
 }
 
 func initialModel() model {
@@ -48,10 +46,10 @@ func initialModel() model {
 
 func (m model) Init() tea.Cmd {
 	return func() tea.Msg {
+		// Don't draw the top menu until we have the viewport size ready
 		if m.ready {
 			return messages.CheckTopMenu(m.pageSize, m.currentPage)
 		}
-		// return messages.CheckTopMenu(m.pageSize, m.currentPage)
 		return messages.CheckNothing()
 	}
 }
@@ -99,10 +97,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Set comments as choices
 		choices := make([]string, len(m.currentTopic.Comments))
 		for i, comment := range m.currentTopic.Comments {
-			// TODO
-			// Handle italics
-			// Handle quotes (line starts with >), color green
-			// Handle links
 			commentText := htmlToText(comment.Text)
 			replies := ""
 			if len(comment.Kids) > 0 {
@@ -347,4 +341,11 @@ func (m model) footerView() string {
 	info := infoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info+navHelpLine)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
