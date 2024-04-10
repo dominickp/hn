@@ -28,6 +28,8 @@ type model struct {
 	ready        bool
 	viewport     viewport.Model
 	content      string
+	pageSize     int
+	currentPage  int
 }
 
 func initialModel() model {
@@ -39,11 +41,15 @@ func initialModel() model {
 		// the  map like a mathematical set. The keys refer to the indexes
 		// of the `choices` slice, above.
 		// selected: make(map[int]struct{}),
+		pageSize:    15,
+		currentPage: 1,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return messages.CheckTopMenu
+	return func() tea.Msg {
+		return messages.CheckTopMenu(m.pageSize, m.currentPage)
+	}
 }
 
 func (m model) InitTopic() tea.Cmd {
@@ -150,10 +156,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// The "down" and "j" keys move the cursor down
 		case "down", "j":
-			// FIXME: only allow scrolling on top menu
-			//			Until I figure out what I'm doing for the topic view
 			if m.cursor < len(m.choices)-1 {
 				m.cursor++
+			}
+		case "right":
+			if m.currentTopic.Id == 0 {
+				m.currentPage++
+				return m, tea.Cmd(m.Init())
+			}
+		case "left":
+			if m.currentTopic.Id == 0 && m.currentPage > 1 {
+				m.currentPage--
+				return m, tea.Cmd(m.Init())
 			}
 
 		// The "enter" key and the spacebar (a literal space) toggle
@@ -314,7 +328,7 @@ func (m model) headerView() string {
 
 // footerView returns the footer view for the paginated viewport.
 func (m model) footerView() string {
-	navMessage := "Press q to quit, backspace to refresh."
+	navMessage := fmt.Sprintf("Page %d. Press q to quit, backspace to refresh.", m.currentPage)
 	if m.currentTopic.Id != 0 {
 		// Topic view
 		navMessage = "Press q to quit, backspace to go back."

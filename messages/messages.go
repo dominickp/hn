@@ -5,8 +5,9 @@ import (
 	"github.com/dominickp/go-hn-cli/client"
 )
 
-func CheckTopMenu() tea.Msg {
-	topMenuResponse, err := client.GetTopMenuResponse(15)
+func CheckTopMenu(pageSize, page int) tea.Msg {
+	// TODO: Make pagesize dynamic depending on viewport?
+	topMenuResponse, err := client.GetTopMenuResponse(pageSize, page)
 
 	if err != nil {
 		// There was an error making our request. Wrap the error we received

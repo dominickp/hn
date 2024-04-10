@@ -124,22 +124,34 @@ type TopMenuResponse struct {
 	Items []Item `json:"items"`
 }
 
-func GetTopMenuResponse(maxItems int) (TopMenuResponse, error) {
+func GetTopMenuResponse(pageSize, page int) (TopMenuResponse, error) {
 	var topMenuResponse TopMenuResponse
 	topStories, err := GetTopStories()
 	if err != nil {
 		return TopMenuResponse{}, err
 	}
-	for _, storyId := range topStories {
+
+	pageStories := topStories[pageSize*(page-1) : pageSize*page]
+
+	topMenuResponse.Items = make([]Item, 0)
+	for _, storyId := range pageStories {
 		item, err := GetItem(storyId)
 		if err != nil {
 			return TopMenuResponse{}, err
 		}
 		topMenuResponse.Items = append(topMenuResponse.Items, item)
-		if len(topMenuResponse.Items) >= maxItems {
-			break
-		}
 	}
+
+	// for _, storyId := range topStories {
+	// 	item, err := GetItem(storyId)
+	// 	if err != nil {
+	// 		return TopMenuResponse{}, err
+	// 	}
+	// 	topMenuResponse.Items = append(topMenuResponse.Items, item)
+	// 	if len(topMenuResponse.Items) >= maxItems {
+	// 		break
+	// 	}
+	// }
 	return topMenuResponse, nil
 
 }
