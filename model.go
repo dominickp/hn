@@ -32,13 +32,7 @@ type model struct {
 
 func initialModel() model {
 	return model{
-		// Our to-do list is a grocery list
-		choices: []string{},
-
-		// A map which indicates which choices are selected. We're using
-		// the  map like a mathematical set. The keys refer to the indexes
-		// of the `choices` slice, above.
-		// selected: make(map[int]struct{}),
+		choices:     []string{},
 		pageSize:    15,
 		currentPage: 1,
 	}
