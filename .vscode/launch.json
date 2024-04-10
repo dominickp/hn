@@ -9,7 +9,8 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "main.go",
+            // "program": "main.go",
+            "program": "${workspaceFolder}", // or "${workspaceFolder}/path_to_your_main_package" if your main package is not at the root of your workspace
             "console": "integratedTerminal", // or "externalTerminal"
             "output": "./bin/go-hn-cli"
         }
