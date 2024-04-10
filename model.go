@@ -133,8 +133,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - verticalMarginHeight
 		}
-	// case nil:
-	// 	return m, nil
 
 	case tea.KeyMsg:
 
@@ -203,6 +201,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// colorizeQuoteLines colorizes lines that start with ">" in a string.
 func colorizeQuoteLines(s string) string {
 	scanner := bufio.NewScanner(strings.NewReader(s))
 	var lines []string
@@ -223,18 +222,19 @@ func htmlToText(s string) string {
 	// Replace <p> tags with newlines
 	s = strings.ReplaceAll(s, "<p>", "\n")
 	s = strings.ReplaceAll(s, "</p>", "\n")
-	// Get content within <i></i> tags
 
 	doc, _ := h.Parse(strings.NewReader(s))
 	var f func(*h.Node)
 	f = func(n *h.Node) {
 		if n.Type == h.ElementNode && n.Data == "i" {
+			// Italicize text within <i> tags
 			if n.FirstChild != nil {
 				italicText := n.FirstChild.Data
 				styledText := italicStyle.Render(italicText)
 				s = strings.Replace(s, "<i>"+italicText+"</i>", styledText, -1)
 			}
 		} else if n.Data == "a" {
+			// Colorize and simplify links in <a> tags
 			var href string
 			var rel string
 
@@ -254,18 +254,14 @@ func htmlToText(s string) string {
 				} else {
 					s = strings.Replace(s, `<a href="`+href+`">`+linkText+`</a>`, styledText, -1)
 				}
-
 			}
 		}
-
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c)
 		}
 	}
 	f(doc)
-
 	s = colorizeQuoteLines(s)
-
 	return s
 }
 
