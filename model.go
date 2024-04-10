@@ -134,6 +134,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Render the viewport one line below the header.
 			m.viewport.YPosition = headerHeight + 1
+			// Updatee the page size to call for more items per page if we can fit them
+			m.pageSize = m.viewport.Height - 1
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - verticalMarginHeight
@@ -328,7 +330,7 @@ func (m model) headerView() string {
 
 // footerView returns the footer view for the paginated viewport.
 func (m model) footerView() string {
-	navMessage := fmt.Sprintf("Page %d. Press q to quit, backspace to refresh.", m.currentPage)
+	navMessage := fmt.Sprintf("Page %d. Press q to quit, ←/→ to paginate, backspace to refresh.", m.currentPage)
 	if m.currentTopic.Id != 0 {
 		// Topic view
 		navMessage = "Press q to quit, backspace to go back."
