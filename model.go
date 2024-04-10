@@ -48,7 +48,11 @@ func initialModel() model {
 
 func (m model) Init() tea.Cmd {
 	return func() tea.Msg {
-		return messages.CheckTopMenu(m.pageSize, m.currentPage)
+		if m.ready {
+			return messages.CheckTopMenu(m.pageSize, m.currentPage)
+		}
+		// return messages.CheckTopMenu(m.pageSize, m.currentPage)
+		return messages.CheckNothing()
 	}
 }
 
@@ -136,10 +140,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.YPosition = headerHeight + 1
 			// Updatee the page size to call for more items per page if we can fit them
 			m.pageSize = m.viewport.Height - 1
+			return m, tea.Cmd(m.Init())
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - verticalMarginHeight
 		}
+	// case nil:
+	// 	return m, nil
 
 	case tea.KeyMsg:
 

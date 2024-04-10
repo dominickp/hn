@@ -31,7 +31,7 @@ func getEnvString(key, fallback string) string {
 }
 
 func init() {
-	hackernewsURIPrefix = getEnvString("CHAN_HOST", defaultHackerNewsURIPrefix)
+	hackernewsURIPrefix = getEnvString("HN_HOST", defaultHackerNewsURIPrefix)
 	restyClient = resty.New().
 		SetJSONMarshaler(json.Marshal).
 		SetJSONUnmarshaler(json.Unmarshal).

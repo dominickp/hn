@@ -34,6 +34,10 @@ func CheckTopic(topicID int) tea.Msg {
 	return TopicMsg(item)
 }
 
+func CheckNothing() tea.Msg {
+	return nil
+}
+
 type TopMenuMsg client.TopMenuResponse
 type TopicMsg client.Item
 type ErrMsg struct{ err error }
