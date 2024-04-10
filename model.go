@@ -276,9 +276,6 @@ func getContent(m model) string {
 			s += fmt.Sprintf("→ %s\n", linkStyle.Render(m.currentTopic.Url))
 		}
 		s += "\n"
-	} else {
-		// Render top menu view
-		s += "HackerNews Top Topics:\n\n"
 	}
 
 	// Iterate over our choices
