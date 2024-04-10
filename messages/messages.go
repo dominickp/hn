@@ -2,7 +2,7 @@ package messages
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dominickp/go-hn-cli/client"
+	"github.com/dominickp/hn/client"
 )
 
 func CheckTopMenu(pageSize, page int) tea.Msg {

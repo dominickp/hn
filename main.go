@@ -6,6 +6,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/dominickp/hn/logger"
 )
 
 const logfilePath = "logs/bubbletea.log"
@@ -19,11 +20,7 @@ func max(a, b int) int {
 }
 
 func main() {
-	if logfilePath != "" {
-		if _, err := tea.LogToFile(logfilePath, "simple"); err != nil {
-			log.Fatal(err)
-		}
-	}
+	logger.Init(logfilePath)
 
 	p := tea.NewProgram(
 		initialModel(),

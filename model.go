@@ -12,9 +12,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dominickp/go-hn-cli/client"
-	"github.com/dominickp/go-hn-cli/messages"
-	"github.com/dominickp/go-hn-cli/util"
+	"github.com/dominickp/hn/client"
+	"github.com/dominickp/hn/messages"
+	"github.com/dominickp/hn/util"
 )
 
 type model struct {

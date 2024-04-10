@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	log "github.com/dominickp/hn/logger"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -45,7 +45,7 @@ func handleRequest(method string, endpoint string, headers map[string]string, re
 		SetResult(result).
 		Get(hackernewsURIPrefix + endpoint)
 
-	log.Printf("Request to %s%s returned %d", hackernewsURIPrefix, endpoint, response.StatusCode())
+	log.Logger.Printf("Request to %s%s returned %d", hackernewsURIPrefix, endpoint, response.StatusCode())
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func handleRequest(method string, endpoint string, headers map[string]string, re
 }
 
 func GetTopStories() ([]int, error) {
-	log.Println("Getting top stories")
+	log.Logger.Println("Getting top stories")
 	var topStories []int
 	err := handleRequest("GET", "topstories.json", nil, &topStories)
 	if err != nil {
@@ -79,7 +79,7 @@ type Item struct {
 }
 
 func GetItem(itemId int) (Item, error) {
-	log.Printf("Getting item %d", itemId)
+	log.Logger.Printf("Getting item %d", itemId)
 	var item Item
 	err := handleRequest("GET", fmt.Sprintf("item/%d.json", itemId), nil, &item)
 	if err != nil {
@@ -90,7 +90,7 @@ func GetItem(itemId int) (Item, error) {
 }
 
 func GetItemWithComments(itemId, maxComments int) (Item, error) {
-	log.Printf("Getting item with comments %d", itemId)
+	log.Logger.Printf("Getting item with comments %d", itemId)
 	var item Item
 	err := handleRequest("GET", fmt.Sprintf("item/%d.json", itemId), nil, &item)
 	if err != nil {
@@ -102,7 +102,7 @@ func GetItemWithComments(itemId, maxComments int) (Item, error) {
 		if len(item.Comments) >= maxComments {
 			break
 		}
-		log.Printf("Getting comment %d", commentId)
+		log.Logger.Printf("Getting comment %d", commentId)
 		var comment Item
 		err := handleRequest("GET", fmt.Sprintf("item/%d.json", commentId), nil, &comment)
 		if err != nil {
