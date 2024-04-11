@@ -59,7 +59,7 @@ func (m model) RedrawPage() tea.Cmd {
 			return checkTopic(m.getCurrentTopic().Id)
 		}
 		if len(m.topMenuResponse.Items) > 0 {
-			return checkTopMenuPage(m.topMenuResponse, m.pageSize, m.currentPage) // Get the top 500 stories and save to our cache
+			return checkTopMenuPage(m.topMenuResponse, m.pageSize, m.currentPage)
 		}
 		return checkNothing()
 	}
