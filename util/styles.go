@@ -15,9 +15,15 @@ var (
 		return TitleBoxStyle.Copy().BorderStyle(b)
 	}()
 
-	TextStyle   = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
-	LinkStyle   = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("1"))
-	ItalicStyle = lipgloss.NewStyle().Italic(true)
-	QuoteStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	TitleStyle  = lipgloss.NewStyle().Bold(true)
+	CursorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
+
+	TopicTextStyle   = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8")).MarginLeft(4)
+	TopicAuthorStyle = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
+	LinkStyle        = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("1"))
+	ItalicStyle      = lipgloss.NewStyle().Italic(true)
+	QuoteStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	TitleStyle       = lipgloss.NewStyle().Bold(true)
+
+	CommentAuthorStyle = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
+	CommentTextStyle   = lipgloss.NewStyle().MarginLeft(4).PaddingBottom(1)
 )

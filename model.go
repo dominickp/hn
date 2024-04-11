@@ -120,27 +120,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(getContent(m))
 		return m, nil
 	case topicMsg:
-		// The server returned a topic response message. Save it to our model.
-		// m.currentTopic = client.Item(msg)
-
-		// pop item from stack
-		// m.topicHistoryStack = m.topicHistoryStack[:len(m.topicHistoryStack)-1]
-		// Put thew new item on the stack
 		item := client.Item(msg)
 		if m.getCurrentTopic() == nil || m.getCurrentTopic().Id != item.Id {
 			m.topicHistoryStack = append(m.topicHistoryStack, item)
 		}
-		// if x != item.Id {
-		// 	m.topicHistoryStack = append(m.topicHistoryStack, client.Item(msg))
-		// }
 		topic := m.getCurrentTopic()
-		// Styles
-		authorStyle := lipgloss.NewStyle().
-			Bold(false).
-			Foreground(lipgloss.Color("8"))
-		textStyle := lipgloss.NewStyle().
-			PaddingLeft(4).
-			PaddingBottom(2)
 		// Set comments as choices
 		choices := make([]string, len(topic.Comments))
 		for i, comment := range topic.Comments {
@@ -149,7 +133,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(comment.Kids) > 0 {
 				replies = fmt.Sprintf(" (%d replies)", len(comment.Kids))
 			}
-			choices[i] = fmt.Sprintf("%s\n%s", authorStyle.Render(comment.By+replies), textStyle.Render(commentText))
+			choices[i] = fmt.Sprintf(
+				"%s\n%s",
+				util.CommentAuthorStyle.Render(comment.By+replies),
+				util.CommentTextStyle.Width(m.viewport.Width-util.CommentTextStyle.GetHorizontalMargins()).
+					Render(commentText),
+			)
 		}
 		m.choices = choices
 		m.viewport.SetContent(getContent(m))
@@ -228,8 +217,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var newTopic client.Item
 			topic := m.getCurrentTopic()
 			if topic != nil {
-				// newTopicID := topic.Kids[m.cursor]
-				// newTopic = client.Item{Id: newTopicID}
 				m.nextTopicId = topic.Kids[m.cursor]
 			} else {
 				// Viewing the top menu, clicking a topic for the first time
@@ -246,10 +233,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Cmd(m.InitTopic())
 
 		case "backspace":
-			// m.currentItem = 0
-			// m.currentTopic = client.Item{}
 			if m.getCurrentTopic() != nil {
 				m.topicHistoryStack = m.topicHistoryStack[:len(m.topicHistoryStack)-1]
+			} else {
+				// Let the user use backspace to navigate backwards as well
+				if m.currentPage > 1 {
+					m.currentPage--
+				}
 			}
 			m.cursor = 0 // FIXME: Should have two cursors, so we can remember top meny cursor location when nav back
 			m.viewport.GotoTop()
@@ -261,7 +251,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Go back to page 1
 			m.currentPage = 1
 			return m, tea.Cmd(m.Init())
-
 		}
 
 	}
@@ -288,9 +277,16 @@ func getContent(m model) string {
 		if topic.Title != "" {
 			s += fmt.Sprintf("%s\n", util.TitleStyle.Render(topic.Title))
 		}
+		if topic.By != "" {
+			byLine := util.TopicAuthorStyle.Render(fmt.Sprintf("By %s (%d comments)", topic.By, len(topic.Kids)))
+			s += fmt.Sprintf("%s\n", byLine)
+		}
 
 		if topic.Text != "" {
-			s += fmt.Sprintf("%s\n", util.TextStyle.Render(util.HtmlToText(topic.Text)))
+			s += fmt.Sprintf(
+				"%s\n",
+				util.TopicTextStyle.Width(m.viewport.Width-util.TopicTextStyle.GetHorizontalMargins()).
+					Render(util.HtmlToText(topic.Text)))
 		}
 		if topic.Url != "" {
 			s += fmt.Sprintf("→ %s\n", util.LinkStyle.Render(topic.Url))
@@ -302,16 +298,13 @@ func getContent(m model) string {
 	for i, choice := range m.choices {
 
 		// Is the cursor pointing at this choice?
-		style := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("5"))
 		cursor := " " // no cursor
 		if m.cursor == i {
 			cursor = ">" // cursor!
 		}
 
 		// Render the row
-		s += fmt.Sprintf("%s %s\n", style.Render(cursor), choice)
+		s += fmt.Sprintf("%s %s\n", util.CursorStyle.Render(cursor), choice)
 	}
 	return s
 }

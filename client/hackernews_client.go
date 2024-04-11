@@ -108,6 +108,11 @@ func GetItemWithComments(itemId, maxComments int) (Item, error) {
 			return Item{}, err
 		}
 
+		if comment.Text == "" {
+			// Skip comments with no text
+			continue
+		}
+
 		if strings.HasPrefix(comment.Text, "[") {
 			// Remove comments that are [dupe] or [dead] or [flagged]
 			continue
@@ -131,20 +136,10 @@ func GetTopMenuResponse() (TopMenuResponse, error) {
 		return TopMenuResponse{}, err
 	}
 
-	// pageStories := topStories[pageSize*(page-1) : pageSize*page]
-
 	topMenuResponse.Items = make([]Item, 0)
 	for _, storyId := range topStories {
 		topMenuResponse.Items = append(topMenuResponse.Items, Item{Id: storyId})
 	}
-	// for _, storyId := range pageStories {
-	// 	item, err := GetItem(storyId)
-	// 	if err != nil {
-	// 		return TopMenuResponse{}, err
-	// 	}
-	// 	topMenuResponse.Items = append(topMenuResponse.Items, item)
-	// }
-
 	return topMenuResponse, nil
 
 }
