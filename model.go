@@ -27,19 +27,20 @@ type model struct {
 	currentPage       int
 }
 
-func (m model) getCurrentTopic() *client.Item {
-	if len(m.topicHistoryStack) > 0 {
-		return &m.topicHistoryStack[len(m.topicHistoryStack)-1]
-	}
-	return nil
-}
-
 func initialModel() model {
 	return model{
 		choices:     []string{},
 		pageSize:    15,
 		currentPage: 1,
 	}
+}
+
+// getCurrentTopic returns the current topic we're viewing from the top of the stack
+func (m model) getCurrentTopic() *client.Item {
+	if len(m.topicHistoryStack) > 0 {
+		return &m.topicHistoryStack[len(m.topicHistoryStack)-1]
+	}
+	return nil
 }
 
 func (m model) Init() tea.Cmd {
