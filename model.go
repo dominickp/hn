@@ -14,21 +14,14 @@ import (
 	"github.com/dominickp/hn/util"
 )
 
-// type breadCrumb struct {
-// 	Id   int
-// 	Item client.Item
-// }
-
 type model struct {
-	choices         []string // items on the to-do list
-	topMenuResponse client.TopMenuResponse
-	cursor          int   // which to-do list item our cursor is pointing at
-	err             error // an error to display, if any
-	// currentItem       int   // which item is currently selected
-	// currentTopic      client.Item
-	nextTopicId       int
-	topicHistoryStack []client.Item
-	ready             bool
+	choices           []string // items on the to-do list
+	topMenuResponse   client.TopMenuResponse
+	cursor            int           // which to-do list item our cursor is pointing at
+	err               error         // an error to display, if any
+	nextTopicId       int           // Next topic ID we should fetch
+	topicHistoryStack []client.Item // Stack of topics we've visited
+	ready             bool          // Whether the program is ready to render
 	viewport          viewport.Model
 	pageSize          int
 	currentPage       int
@@ -37,13 +30,6 @@ type model struct {
 func (m model) getCurrentTopic() *client.Item {
 	if len(m.topicHistoryStack) > 0 {
 		return &m.topicHistoryStack[len(m.topicHistoryStack)-1]
-	}
-	return nil
-}
-
-func (m model) getCurrentTopicId() *int {
-	if topic := m.getCurrentTopic(); topic != nil {
-		return &topic.Id
 	}
 	return nil
 }
@@ -87,6 +73,7 @@ func (m model) InitTopic() tea.Cmd {
 	}
 }
 
+// getTopMenuCurrentPageChoices returns the current page of saved top menu items as choices
 func getTopMenuCurrentPageChoices(m model) []string {
 	choices := make([]string, m.pageSize)
 	style := lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
@@ -114,8 +101,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.choices = getTopMenuCurrentPageChoices(m)
 		m.viewport.SetContent(getContent(m))
 		return m, nil
-
 	case checkTopMenuPageMsg:
+		// We should just update the choices with the current top menu data we have.
 		m.choices = getTopMenuCurrentPageChoices(m)
 		m.viewport.SetContent(getContent(m))
 		return m, nil
@@ -222,12 +209,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Viewing the top menu, clicking a topic for the first time
 				itemIndex := (m.currentPage-1)*m.pageSize + m.cursor
 				newTopic = m.topMenuResponse.Items[itemIndex]
-				// m.topicHistoryStack = append(m.topicHistoryStack, newTopic)
 				m.nextTopicId = newTopic.Id
 			}
-
-			// m.currentItem = item.Id
-
 			m.cursor = 0
 			m.viewport.GotoTop()
 			return m, tea.Cmd(m.InitTopic())
@@ -321,7 +304,19 @@ func (m model) View() string {
 // headerView returns the header view for the paginated viewport.
 func (m model) headerView() string {
 	title := util.TitleBoxStyle.Render("Hacker News")
-	line := strings.Repeat("─", util.Max(0, m.viewport.Width-lipgloss.Width(title)))
+
+	breadCrumbLine := "──"
+	for i, topic := range m.topicHistoryStack {
+		if i > 0 {
+			breadCrumbLine += ">"
+		}
+		breadCrumbLine += fmt.Sprintf(" %s ", topic.By)
+	}
+
+	line := breadCrumbLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title+breadCrumbLine)))
+
+	// line := strings.Repeat("─", util.Max(0, m.viewport.Width-lipgloss.Width(title)))
+
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
 
