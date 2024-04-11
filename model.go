@@ -305,6 +305,7 @@ func (m model) View() string {
 func (m model) headerView() string {
 	title := util.TitleBoxStyle.Render("Hacker News")
 
+	// Create a breadcrumb line so people can see where they are in the navigation
 	breadCrumbLine := "──"
 	for i, topic := range m.topicHistoryStack {
 		if i > 0 {
@@ -312,11 +313,7 @@ func (m model) headerView() string {
 		}
 		breadCrumbLine += fmt.Sprintf(" %s ", topic.By)
 	}
-
 	line := breadCrumbLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title+breadCrumbLine)))
-
-	// line := strings.Repeat("─", util.Max(0, m.viewport.Width-lipgloss.Width(title)))
-
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
 
