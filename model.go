@@ -280,14 +280,17 @@ func (m model) headerView() string {
 
 // footerView returns the footer view for the paginated viewport.
 func (m model) footerView() string {
-	navMessage := fmt.Sprintf("Page %d. Press q to quit, ←/→ to paginate, F5 to refresh.", m.currentPage)
+	navMessage := "Press q to quit, ←/→ to paginate, F5 to refresh."
 	if m.currentTopic.Id != 0 {
 		// Topic view
 		navMessage = "Press q to quit, backspace to go back."
 	}
 	navHelpLine := fmt.Sprintf("─── %s ", navMessage)
 
-	info := util.InfoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info+navHelpLine)))
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+	infoText := util.InfoBoxStyle.Render(fmt.Sprintf("Page %d", m.currentPage))
+	if m.currentTopic.Id != 0 {
+		infoText = util.InfoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	}
+	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(infoText+navHelpLine)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, infoText)
 }
