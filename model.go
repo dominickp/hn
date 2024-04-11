@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/dominickp/hn/logger"
+
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,17 +14,38 @@ import (
 	"github.com/dominickp/hn/util"
 )
 
+// type breadCrumb struct {
+// 	Id   int
+// 	Item client.Item
+// }
+
 type model struct {
 	choices         []string // items on the to-do list
 	topMenuResponse client.TopMenuResponse
 	cursor          int   // which to-do list item our cursor is pointing at
 	err             error // an error to display, if any
-	currentItem     int   // which item is currently selected
-	currentTopic    client.Item
-	ready           bool
-	viewport        viewport.Model
-	pageSize        int
-	currentPage     int
+	// currentItem       int   // which item is currently selected
+	// currentTopic      client.Item
+	nextTopicId       int
+	topicHistoryStack []client.Item
+	ready             bool
+	viewport          viewport.Model
+	pageSize          int
+	currentPage       int
+}
+
+func (m model) getCurrentTopic() *client.Item {
+	if len(m.topicHistoryStack) > 0 {
+		return &m.topicHistoryStack[len(m.topicHistoryStack)-1]
+	}
+	return nil
+}
+
+func (m model) getCurrentTopicId() *int {
+	if topic := m.getCurrentTopic(); topic != nil {
+		return &topic.Id
+	}
+	return nil
 }
 
 func initialModel() model {
@@ -45,6 +68,9 @@ func (m model) Init() tea.Cmd {
 
 func (m model) RedrawPage() tea.Cmd {
 	return func() tea.Msg {
+		if m.getCurrentTopic() != nil {
+			return checkTopic(m.getCurrentTopic().Id)
+		}
 		if len(m.topMenuResponse.Items) > 0 {
 			return checkTopMenuPage(m.topMenuResponse, m.pageSize, m.currentPage) // Get the top 500 stories and save to our cache
 		}
@@ -54,7 +80,10 @@ func (m model) RedrawPage() tea.Cmd {
 
 func (m model) InitTopic() tea.Cmd {
 	return func() tea.Msg {
-		return checkTopic(m.currentItem)
+		if m.nextTopicId != 0 {
+			return checkTopic(m.nextTopicId)
+		}
+		return checkNothing()
 	}
 }
 
@@ -92,7 +121,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case topicMsg:
 		// The server returned a topic response message. Save it to our model.
-		m.currentTopic = client.Item(msg)
+		// m.currentTopic = client.Item(msg)
+
+		// pop item from stack
+		// m.topicHistoryStack = m.topicHistoryStack[:len(m.topicHistoryStack)-1]
+		// Put thew new item on the stack
+		item := client.Item(msg)
+		if m.getCurrentTopic() == nil || m.getCurrentTopic().Id != item.Id {
+			m.topicHistoryStack = append(m.topicHistoryStack, item)
+		}
+		// if x != item.Id {
+		// 	m.topicHistoryStack = append(m.topicHistoryStack, client.Item(msg))
+		// }
+		topic := m.getCurrentTopic()
 		// Styles
 		authorStyle := lipgloss.NewStyle().
 			Bold(false).
@@ -101,8 +142,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			PaddingLeft(4).
 			PaddingBottom(2)
 		// Set comments as choices
-		choices := make([]string, len(m.currentTopic.Comments))
-		for i, comment := range m.currentTopic.Comments {
+		choices := make([]string, len(topic.Comments))
+		for i, comment := range topic.Comments {
 			commentText := util.HtmlToText(comment.Text)
 			replies := ""
 			if len(comment.Kids) > 0 {
@@ -168,13 +209,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "right":
-			if m.currentTopic.Id == 0 {
+			if m.getCurrentTopic() == nil {
 				m.currentPage++
 				m.cursor = 0
 				return m, tea.Cmd(m.RedrawPage())
 			}
 		case "left":
-			if m.currentTopic.Id == 0 && m.currentPage > 1 {
+			if m.getCurrentTopic() == nil && m.currentPage > 1 {
 				m.currentPage--
 				m.cursor = 0
 				return m, tea.Cmd(m.RedrawPage())
@@ -184,22 +225,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
 			// Find the item that the cursor is pointing at
-			var item client.Item
-			if m.currentTopic.Id != 0 {
-				item = m.currentTopic.Comments[m.cursor]
+			var newTopic client.Item
+			topic := m.getCurrentTopic()
+			if topic != nil {
+				// newTopicID := topic.Kids[m.cursor]
+				// newTopic = client.Item{Id: newTopicID}
+				m.nextTopicId = topic.Kids[m.cursor]
 			} else {
+				// Viewing the top menu, clicking a topic for the first time
 				itemIndex := (m.currentPage-1)*m.pageSize + m.cursor
-				item = m.topMenuResponse.Items[itemIndex]
+				newTopic = m.topMenuResponse.Items[itemIndex]
+				// m.topicHistoryStack = append(m.topicHistoryStack, newTopic)
+				m.nextTopicId = newTopic.Id
 			}
 
-			m.currentItem = item.Id
+			// m.currentItem = item.Id
+
 			m.cursor = 0
 			m.viewport.GotoTop()
 			return m, tea.Cmd(m.InitTopic())
 
 		case "backspace":
-			m.currentItem = 0
-			m.currentTopic = client.Item{}
+			// m.currentItem = 0
+			// m.currentTopic = client.Item{}
+			if m.getCurrentTopic() != nil {
+				m.topicHistoryStack = m.topicHistoryStack[:len(m.topicHistoryStack)-1]
+			}
 			m.cursor = 0 // FIXME: Should have two cursors, so we can remember top meny cursor location when nav back
 			m.viewport.GotoTop()
 			return m, tea.Cmd(m.RedrawPage())
@@ -214,6 +265,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	}
+	log.Logger.Printf("Current topic: %v", m.getCurrentTopic())
 
 	m.viewport.SetContent(getContent(m))
 
@@ -229,17 +281,19 @@ func getContent(m model) string {
 
 	var s string = ""
 
-	if m.currentTopic.Id != 0 {
+	topic := m.getCurrentTopic()
+
+	if topic != nil {
 		// Render topic view
-		if m.currentTopic.Title != "" {
-			s += fmt.Sprintf("%s\n", util.TitleStyle.Render(m.currentTopic.Title))
+		if topic.Title != "" {
+			s += fmt.Sprintf("%s\n", util.TitleStyle.Render(topic.Title))
 		}
 
-		if m.currentTopic.Text != "" {
-			s += fmt.Sprintf("%s\n", util.TextStyle.Render(util.HtmlToText(m.currentTopic.Text)))
+		if topic.Text != "" {
+			s += fmt.Sprintf("%s\n", util.TextStyle.Render(util.HtmlToText(topic.Text)))
 		}
-		if m.currentTopic.Url != "" {
-			s += fmt.Sprintf("→ %s\n", util.LinkStyle.Render(m.currentTopic.Url))
+		if topic.Url != "" {
+			s += fmt.Sprintf("→ %s\n", util.LinkStyle.Render(topic.Url))
 		}
 		s += "\n"
 	}
@@ -281,14 +335,14 @@ func (m model) headerView() string {
 // footerView returns the footer view for the paginated viewport.
 func (m model) footerView() string {
 	navMessage := "Press q to quit, ←/→ to paginate, F5 to refresh."
-	if m.currentTopic.Id != 0 {
+	if m.getCurrentTopic() != nil {
 		// Topic view
 		navMessage = "Press q to quit, backspace to go back."
 	}
 	navHelpLine := fmt.Sprintf("─── %s ", navMessage)
 
 	infoText := util.InfoBoxStyle.Render(fmt.Sprintf("Page %d", m.currentPage))
-	if m.currentTopic.Id != 0 {
+	if m.getCurrentTopic() != nil {
 		infoText = util.InfoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	}
 	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(infoText+navHelpLine)))
