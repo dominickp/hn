@@ -28,5 +28,4 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           goversion: ./go.mod
-          binary_name: "test-binary"
           extra_files: LICENSE README.md
