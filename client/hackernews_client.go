@@ -123,24 +123,42 @@ type TopMenuResponse struct {
 	Items []Item `json:"items"`
 }
 
-func GetTopMenuResponse(pageSize, page int) (TopMenuResponse, error) {
+// Returns the top menu response with the top stories as items with only their IDs
+func GetTopMenuResponse() (TopMenuResponse, error) {
 	var topMenuResponse TopMenuResponse
 	topStories, err := GetTopStories()
 	if err != nil {
 		return TopMenuResponse{}, err
 	}
 
-	pageStories := topStories[pageSize*(page-1) : pageSize*page]
+	// pageStories := topStories[pageSize*(page-1) : pageSize*page]
 
 	topMenuResponse.Items = make([]Item, 0)
-	for _, storyId := range pageStories {
-		item, err := GetItem(storyId)
-		if err != nil {
-			return TopMenuResponse{}, err
-		}
-		topMenuResponse.Items = append(topMenuResponse.Items, item)
+	for _, storyId := range topStories {
+		topMenuResponse.Items = append(topMenuResponse.Items, Item{Id: storyId})
 	}
+	// for _, storyId := range pageStories {
+	// 	item, err := GetItem(storyId)
+	// 	if err != nil {
+	// 		return TopMenuResponse{}, err
+	// 	}
+	// 	topMenuResponse.Items = append(topMenuResponse.Items, item)
+	// }
 
 	return topMenuResponse, nil
 
+}
+
+func (t TopMenuResponse) EnrichItems(pageSize, page int) {
+	pageStories := t.Items[pageSize*(page-1) : pageSize*page]
+	for i, item := range pageStories {
+		if item.Type == "" {
+			item, err := GetItem(item.Id)
+			if err != nil {
+				log.Logger.Printf("Error getting item %d: %v", item.Id, err)
+				continue
+			}
+			pageStories[i] = item
+		}
+	}
 }

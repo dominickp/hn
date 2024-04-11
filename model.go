@@ -1,13 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
-
-	h "golang.org/x/net/html"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,7 +37,16 @@ func (m model) Init() tea.Cmd {
 	return func() tea.Msg {
 		// Don't draw the top menu until we have the viewport size ready
 		if m.ready {
-			return checkTopMenu(m.pageSize, m.currentPage)
+			return checkTopMenu(m.pageSize, m.currentPage) // Get the top 500 stories and save to our cache
+		}
+		return checkNothing()
+	}
+}
+
+func (m model) RedrawPage() tea.Cmd {
+	return func() tea.Msg {
+		if len(m.topMenuResponse.Items) > 0 {
+			return checkTopMenuPage(m.topMenuResponse, m.pageSize, m.currentPage) // Get the top 500 stories and save to our cache
 		}
 		return checkNothing()
 	}
@@ -51,6 +56,18 @@ func (m model) InitTopic() tea.Cmd {
 	return func() tea.Msg {
 		return checkTopic(m.currentItem)
 	}
+}
+
+func getTopMenuCurrentPageChoices(m model) []string {
+	choices := make([]string, m.pageSize)
+	style := lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
+	start := (m.currentPage - 1) * m.pageSize
+	end := min(start+m.pageSize, len(m.topMenuResponse.Items))
+	for i, item := range m.topMenuResponse.Items[start:end] {
+		choices[i] = fmt.Sprintf("%s %s", style.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
+	}
+	return choices
+
 }
 
 // Update is called when "things happen." Its job is to look at what has happened and return an updated model in
@@ -65,21 +82,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case topMenuMsg:
 		// The server returned a top menu response message. Save it to our model.
 		m.topMenuResponse = client.TopMenuResponse(msg)
-		choices := make([]string, len(msg.Items))
-		style := lipgloss.NewStyle().
-			Bold(false).
-			Foreground(lipgloss.Color("8"))
-		for i, item := range msg.Items {
-			choices[i] = fmt.Sprintf("%s %s", style.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
-		}
-		m.choices = choices
+		m.choices = getTopMenuCurrentPageChoices(m)
 		m.viewport.SetContent(getContent(m))
-		return m, tea.ClearScreen
+		return m, nil
 
+	case checkTopMenuPageMsg:
+		m.choices = getTopMenuCurrentPageChoices(m)
+		m.viewport.SetContent(getContent(m))
+		return m, nil
 	case topicMsg:
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
-		fmt.Println("current topic: ", m.currentTopic.Title)
 		// Styles
 		authorStyle := lipgloss.NewStyle().
 			Bold(false).
@@ -90,7 +103,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Set comments as choices
 		choices := make([]string, len(m.currentTopic.Comments))
 		for i, comment := range m.currentTopic.Comments {
-			commentText := htmlToText(comment.Text)
+			commentText := util.HtmlToText(comment.Text)
 			replies := ""
 			if len(comment.Kids) > 0 {
 				replies = fmt.Sprintf(" (%d replies)", len(comment.Kids))
@@ -157,24 +170,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right":
 			if m.currentTopic.Id == 0 {
 				m.currentPage++
-				return m, tea.Cmd(m.Init())
+				m.cursor = 0
+				return m, tea.Cmd(m.RedrawPage())
 			}
 		case "left":
 			if m.currentTopic.Id == 0 && m.currentPage > 1 {
 				m.currentPage--
-				return m, tea.Cmd(m.Init())
+				m.cursor = 0
+				return m, tea.Cmd(m.RedrawPage())
 			}
 
 		// The "enter" key and the spacebar (a literal space) toggle
 		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
-
 			// Find the item that the cursor is pointing at
 			var item client.Item
 			if m.currentTopic.Id != 0 {
 				item = m.currentTopic.Comments[m.cursor]
 			} else {
-				item = m.topMenuResponse.Items[m.cursor]
+				itemIndex := (m.currentPage-1)*m.pageSize + m.cursor
+				item = m.topMenuResponse.Items[itemIndex]
 			}
 
 			m.currentItem = item.Id
@@ -185,9 +200,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace":
 			m.currentItem = 0
 			m.currentTopic = client.Item{}
-			m.cursor = 0
+			m.cursor = 0 // FIXME: Should have two cursors, so we can remember top meny cursor location when nav back
 			m.viewport.GotoTop()
+			return m, tea.Cmd(m.RedrawPage())
+
+		case "f5":
+			// Clear cache of top menu items
+			m.topMenuResponse = client.TopMenuResponse{}
+			// Go back to page 1
+			m.currentPage = 1
 			return m, tea.Cmd(m.Init())
+
 		}
 
 	}
@@ -201,70 +224,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// colorizeQuoteLines colorizes lines that start with ">" in a string.
-func colorizeQuoteLines(s string) string {
-	scanner := bufio.NewScanner(strings.NewReader(s))
-	var lines []string
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, ">") {
-			line = quoteStyle.Render(line)
-		}
-		lines = append(lines, line)
-	}
-	return strings.Join(lines, "\n")
-}
-
-// htmlToText converts a hackernews text message which may contain HTML (like <p> tags) to plain text.
-func htmlToText(s string) string {
-	s = html.UnescapeString(s)
-	// Replace <p> tags with newlines
-	s = strings.ReplaceAll(s, "<p>", "\n")
-	s = strings.ReplaceAll(s, "</p>", "\n")
-
-	doc, _ := h.Parse(strings.NewReader(s))
-	var f func(*h.Node)
-	f = func(n *h.Node) {
-		if n.Type == h.ElementNode && n.Data == "i" {
-			// Italicize text within <i> tags
-			if n.FirstChild != nil {
-				italicText := n.FirstChild.Data
-				styledText := italicStyle.Render(italicText)
-				s = strings.Replace(s, "<i>"+italicText+"</i>", styledText, -1)
-			}
-		} else if n.Data == "a" {
-			// Colorize and simplify links in <a> tags
-			var href string
-			var rel string
-
-			for _, a := range n.Attr {
-				if a.Key == "href" {
-					href = a.Val
-				}
-				if a.Key == "rel" {
-					rel = a.Val
-				}
-			}
-			if n.FirstChild != nil {
-				linkText := n.FirstChild.Data
-				styledText := linkStyle.Render(linkText)
-				if rel != "" {
-					s = strings.Replace(s, `<a href="`+href+`" rel="`+rel+`">`+linkText+`</a>`, styledText, -1)
-				} else {
-					s = strings.Replace(s, `<a href="`+href+`">`+linkText+`</a>`, styledText, -1)
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
-	}
-	f(doc)
-	s = colorizeQuoteLines(s)
-	return s
-}
-
 // getContent returns the content to be displayed in the viewport.
 func getContent(m model) string {
 
@@ -273,14 +232,14 @@ func getContent(m model) string {
 	if m.currentTopic.Id != 0 {
 		// Render topic view
 		if m.currentTopic.Title != "" {
-			s += fmt.Sprintf("%s\n", titleStyle.Render(m.currentTopic.Title))
+			s += fmt.Sprintf("%s\n", util.TitleStyle.Render(m.currentTopic.Title))
 		}
 
 		if m.currentTopic.Text != "" {
-			s += fmt.Sprintf("%s\n", textStyle.Render(htmlToText(m.currentTopic.Text)))
+			s += fmt.Sprintf("%s\n", util.TextStyle.Render(util.HtmlToText(m.currentTopic.Text)))
 		}
 		if m.currentTopic.Url != "" {
-			s += fmt.Sprintf("→ %s\n", linkStyle.Render(m.currentTopic.Url))
+			s += fmt.Sprintf("→ %s\n", util.LinkStyle.Render(m.currentTopic.Url))
 		}
 		s += "\n"
 	}
@@ -314,28 +273,24 @@ func (m model) View() string {
 
 // headerView returns the header view for the paginated viewport.
 func (m model) headerView() string {
-	title := titleBoxStyle.Render("Hacker News")
-	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
+	title := util.TitleBoxStyle.Render("Hacker News")
+	line := strings.Repeat("─", util.Max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
 
 // footerView returns the footer view for the paginated viewport.
 func (m model) footerView() string {
-	navMessage := fmt.Sprintf("Page %d. Press q to quit, ←/→ to paginate, backspace to refresh.", m.currentPage)
+	navMessage := "Press q to quit, ←/→ to paginate, F5 to refresh."
 	if m.currentTopic.Id != 0 {
 		// Topic view
 		navMessage = "Press q to quit, backspace to go back."
 	}
 	navHelpLine := fmt.Sprintf("─── %s ", navMessage)
 
-	info := infoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info+navHelpLine)))
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
+	infoText := util.InfoBoxStyle.Render(fmt.Sprintf("Page %d", m.currentPage))
+	if m.currentTopic.Id != 0 {
+		infoText = util.InfoBoxStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	}
-	return b
+	line := navHelpLine + strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(infoText+navHelpLine)))
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, infoText)
 }
