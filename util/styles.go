@@ -16,6 +16,7 @@ var (
 	}()
 
 	CursorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
+	ScoreStyle  = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
 
 	TopicTextStyle   = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8")).MarginLeft(4)
 	TopicAuthorStyle = lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))

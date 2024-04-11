@@ -77,11 +77,10 @@ func (m model) InitTopic() tea.Cmd {
 // getTopMenuCurrentPageChoices returns the current page of saved top menu items as choices
 func getTopMenuCurrentPageChoices(m model) []string {
 	choices := make([]string, m.pageSize)
-	style := lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("8"))
 	start := (m.currentPage - 1) * m.pageSize
 	end := min(start+m.pageSize, len(m.topMenuResponse.Items))
 	for i, item := range m.topMenuResponse.Items[start:end] {
-		choices[i] = fmt.Sprintf("%s %s", style.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
+		choices[i] = fmt.Sprintf("%s %s", util.ScoreStyle.Render(util.PadRight(strconv.Itoa(item.Score), 4)), item.Title)
 	}
 	return choices
 
