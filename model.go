@@ -84,16 +84,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.topMenuResponse = client.TopMenuResponse(msg)
 		m.choices = getTopMenuCurrentPageChoices(m)
 		m.viewport.SetContent(getContent(m))
-		return m, tea.ClearScreen
+		return m, nil
 
 	case checkTopMenuPageMsg:
 		m.choices = getTopMenuCurrentPageChoices(m)
 		m.viewport.SetContent(getContent(m))
-		return m, tea.ClearScreen
+		return m, nil
 	case topicMsg:
 		// The server returned a topic response message. Save it to our model.
 		m.currentTopic = client.Item(msg)
-		fmt.Println("current topic: ", m.currentTopic.Title)
 		// Styles
 		authorStyle := lipgloss.NewStyle().
 			Bold(false).
@@ -171,18 +170,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right":
 			if m.currentTopic.Id == 0 {
 				m.currentPage++
+				m.cursor = 0
 				return m, tea.Cmd(m.RedrawPage())
 			}
 		case "left":
 			if m.currentTopic.Id == 0 && m.currentPage > 1 {
 				m.currentPage--
+				m.cursor = 0
 				return m, tea.Cmd(m.RedrawPage())
 			}
 
 		// The "enter" key and the spacebar (a literal space) toggle
 		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
-
 			// Find the item that the cursor is pointing at
 			var item client.Item
 			if m.currentTopic.Id != 0 {
@@ -200,7 +200,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace":
 			m.currentItem = 0
 			m.currentTopic = client.Item{}
-			m.cursor = 0
+			m.cursor = 0 // FIXME: Should have two cursors, so we can remember top meny cursor location when nav back
 			m.viewport.GotoTop()
 			return m, tea.Cmd(m.RedrawPage())
 
