@@ -64,7 +64,7 @@ func HtmlToText(s string) string {
 			}
 			if n.FirstChild != nil {
 				linkText := n.FirstChild.Data
-				styledText := LinkStyle.Render(linkText)
+				styledText := LinkStyle.Render(href)
 				if rel != "" {
 					s = strings.Replace(s, `<a href="`+href+`" rel="`+rel+`">`+linkText+`</a>`, styledText, -1)
 				} else {
