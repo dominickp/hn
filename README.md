@@ -7,5 +7,8 @@ Yet [another](https://github.com/donnemartin/haxor-news) CLI tool to browse the 
 
 Either grab a binary from a [release](https://github.com/dominickp/hn/releases) and add it to your PATH or clone this repo and run `go run .` or `go install`.
 
+## CPU Profiling
+`go run .` and then `go tool pprof -http=: profile.prof`
+
 ## Todo
 - Testing
