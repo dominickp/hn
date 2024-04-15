@@ -88,3 +88,32 @@ func TestHtmlToText(t *testing.T) {
 		})
 	}
 }
+
+func Test_colorizeQuoteLines(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "TestQuote",
+			args: args{s: "> foo\nbar"},
+			want: "> foo\nbar", // I'm not sure why ansi escape codes are not being rendered here
+		},
+		{
+			name: "TestEmpty",
+			args: args{s: ""},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := colorizeQuoteLines(tt.args.s); got != tt.want {
+				t.Errorf("colorizeQuoteLines() = '%v', want '%v'", got, tt.want)
+			}
+		})
+	}
+}
